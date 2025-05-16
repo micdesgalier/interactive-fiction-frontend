@@ -1,7 +1,10 @@
 <!-- src/components/ErrorToast.vue -->
 <template>
+  <!-- Affiche le toast uniquement s’il est visible -->
   <div v-if="visible" class="error-toast">
+    <!-- Affiche le message d’erreur passé via la prop -->
     <p>{{ props.modelValue.message }}</p>
+    <!-- Bouton pour fermer manuellement le toast -->
     <button @click="visible = false">×</button>
   </div>
 </template>
@@ -9,7 +12,8 @@
 <script setup>
 import { ref, watch } from 'vue'
 
-// ⚠️ UNE SEULE FOIS defineProps
+// Définition des props : ici, on attend un objet représentant l’erreur
+// `modelValue` suit la convention des composants contrôlés (comme v-model)
 const props = defineProps({
   modelValue: {
     type: Object,
@@ -17,15 +21,17 @@ const props = defineProps({
   }
 })
 
+// État local pour afficher ou masquer le toast
 const visible = ref(false)
 
-// Quand on reçoit une erreur, on affiche le toast
+// Surveille les changements de la prop modelValue
+// Lorsqu'une erreur est détectée, on affiche le toast
 watch(
   () => props.modelValue,
   (err) => {
     if (err) {
       visible.value = true
-      // Cache le toast après 4s
+      // Masquer automatiquement après 4 secondes
       setTimeout(() => (visible.value = false), 4000)
     }
   }
@@ -33,11 +39,12 @@ watch(
 </script>
 
 <style scoped>
+/* Style du toast d’erreur */
 .error-toast {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
-  background: #e53e3e;
+  background: #e53e3e; /* Rouge foncé */
   color: white;
   padding: 1rem 1.5rem;
   border-radius: 4px;
@@ -45,6 +52,8 @@ watch(
   display: flex;
   align-items: center;
 }
+
+/* Style du bouton pour fermer manuellement le toast */
 .error-toast button {
   background: none;
   border: none;

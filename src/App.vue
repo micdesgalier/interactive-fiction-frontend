@@ -1,15 +1,18 @@
+<!-- src/App.vue -->
 <script setup>
+// Aucun script nécessaire ici : le routeur gère le rendu des vues.
 </script>
 
 <template>
-    <router-view></router-view>
+  <!-- La vue correspondante au chemin actuel est injectée ici -->
+  <router-view />
 </template>
 
 <style scoped>
+/* Styles pour les logos (exemple Vite + Vue dans le boilerplate) */
 .logo {
   height: 6em;
   padding: 1.5em;
-  will-change: filter;
   transition: filter 300ms;
 }
 .logo:hover {
@@ -21,11 +24,13 @@
 </style>
 
 <style>
-/* dans src/assets/global.css ou App.vue non scoped */
-body, html {
-  background-color: #2d3748;
-  color: #edf2f7;
-  min-height: 100vh;
+/* Styles globaux (déplacer de préférence dans src/assets/global.css) */
+body,
+html {
+  background-color: #2d3748;  /* gris foncé pour le fond */
+  color: #edf2f7;             /* texte clair pour le contraste */
   margin: 0;
+  min-height: 100vh;
+  font-family: sans-serif;
 }
 </style>

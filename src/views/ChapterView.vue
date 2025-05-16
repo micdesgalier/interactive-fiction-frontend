@@ -1,19 +1,21 @@
 <template>
   <div class="chapter-view">
-    <!-- Toast d’erreur -->
+    <!-- Composant toast d’erreur réutilisable -->
     <ErrorToast :modelValue="error" />
 
+    <!-- Bouton retour vers la liste des histoires -->
     <button class="btn-back" @click="goBack">← Retour aux histoires</button>
 
     <div class="chapter-container">
-      <!-- TITRE -->
+      <!-- Titre du chapitre, visible uniquement si le chapitre est chargé -->
       <h2 v-if="chapter" class="chapter-title">{{ chapter.title }}</h2>
 
-      <!-- CONTENU & CHOIX -->
+      <!-- Contenu du chapitre + liste des choix -->
       <div v-if="chapter && chapter.choices.length">
-        <!-- Contenu normal d'un chapitre intermédiaire -->
+        <!-- Texte du chapitre -->
         <div class="chapter-content">{{ chapter.content }}</div>
 
+        <!-- Liste des choix disponibles pour ce chapitre -->
         <ul class="choices-list">
           <li v-for="choice in chapter.choices" :key="choice.id">
             <button @click="selectChoice(choice.target_chapter_id)">
@@ -23,21 +25,22 @@
         </ul>
       </div>
 
-      <!-- ÉPILOGUE / FIN -->
+      <!-- Affichage spécial pour les chapitres de fin (aucun choix) -->
       <div v-else-if="chapter" class="epilogue">
         <div class="epilogue-header">
           🏁 <strong>FIN</strong>
         </div>
 
-        <!-- Contenu de l'épilogue (une seule fois) -->
+        <!-- Contenu du dernier chapitre (épilogue) -->
         <div class="chapter-content">{{ chapter.content }}</div>
 
+        <!-- Proposer de recommencer l’histoire -->
         <button class="btn-restart" @click="restartStory">
           🔄 Recommencer l'histoire
         </button>
       </div>
 
-      <!-- LOADER -->
+      <!-- Affichage pendant le chargement du chapitre -->
       <p v-else class="loading">Chargement du chapitre…</p>
     </div>
   </div>
@@ -45,60 +48,71 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue';
-import { useRoute, useRouter }   from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getChapter, getChapterByOrder } from '../api/api';
 import ErrorToast from '../components/ErrorToast.vue';
 
-const route  = useRoute();
+// Objets routeurs pour accéder aux paramètres d’URL et naviguer
+const route = useRoute();
 const router = useRouter();
 
-const chapter = ref(null);
-const error   = ref(null);
-const sid     = route.params.sid;
-const cid     = ref(Number(route.params.cid));
+// Références réactives
+const chapter = ref(null);        // Données du chapitre courant
+const error = ref(null);          // Message d’erreur (affiché par le toast)
+const sid = route.params.sid;     // ID de l’histoire (récupéré depuis l’URL)
+const cid = ref(Number(route.params.cid));  // Ordre du chapitre actuel
 
 /**
- * Charge un chapitre par son ordre dans la story.
- * En cas d’erreur, on alimente `error` pour afficher le toast.
+ * Charge le chapitre par son ordre (cid)
+ * Met à jour la progression dans le localStorage
  */
 async function loadChapter(order) {
   chapter.value = null;
-  error.value   = null;
+  error.value = null;
   try {
     const { data } = await getChapterByOrder(sid, order);
     chapter.value = data.data;
+
+    // Sauvegarde la progression dans le localStorage
     localStorage.setItem(`progress_story_${sid}`, order);
   } catch (e) {
     error.value = { message: 'Impossible de charger le chapitre.' };
-    // On peut rediriger après un délai si besoin
+    // Redirige vers la liste des histoires après un délai
     setTimeout(() => router.push({ name: 'Stories' }), 2000);
   }
 }
 
+// Au montage du composant, charge le chapitre initial
 onMounted(() => loadChapter(cid.value));
+
+// Surveille les changements de cid dans l'URL (clic sur un choix)
 watch(() => route.params.cid, newCid => loadChapter(Number(newCid)));
 
 /**
- * Sélectionne un choix et redirige vers le chapitre suivant.
- * Gère les erreurs également via le toast.
+ * Gère le clic sur un choix (bouton)
+ * Va chercher les infos du chapitre ciblé et redirige
  */
 async function selectChoice(nextChapterId) {
-  if (! nextChapterId) return;
+  if (!nextChapterId) return;
+
   error.value = null;
   try {
     const { data } = await getChapter(sid, nextChapterId);
     const nextOrder = data.data.order;
+
+    // Redirige vers le chapitre suivant par son ordre
     router.push({ name: 'Chapter', params: { sid, cid: nextOrder } });
   } catch {
     error.value = { message: 'Chapitre suivant introuvable.' };
-    // on peut rester sur la page ou rediriger
   }
 }
 
+// Retour vers la liste des histoires
 function goBack() {
   router.push({ name: 'Stories' });
 }
 
+// Recommence l’histoire depuis le début
 function restartStory() {
   localStorage.removeItem(`progress_story_${sid}`);
   router.push({ name: 'Chapter', params: { sid, cid: 1 } });
