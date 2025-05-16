@@ -1,8 +1,12 @@
 <template>
+  <!-- 1) Composant de notification d’erreur -->
+  <ErrorToast :modelValue="error" />
+
   <div class="stories-container">
     <!-- TITRE PRINCIPAL -->
     <h1 class="page-title">Liste des histoires disponibles</h1>
 
+    <!-- 2) Liste des cartes d’histoires -->
     <ul class="stories-list">
       <li v-for="s in stories" :key="s.id">
         <h3 class="story-title">{{ s.title }}</h3>
@@ -14,7 +18,7 @@
             class="btn-reprendre"
             @click="goToChapter(s.id, progressFor(s.id))"
           >
-            <span class="btn-icon">🔄</span> Reprendre au chapitre {{ progressFor(s.id) }}
+            <span class="btn-icon">▶️</span> Reprendre au chapitre {{ progressFor(s.id) }}
           </button>
 
           <!-- Toujours proposer un redémarrage -->
@@ -38,6 +42,7 @@
       </li>
     </ul>
 
+    <!-- Message si aucune histoire -->
     <p v-if="stories.length === 0" class="no-stories">
       Aucune histoire disponible pour le moment.
     </p>
@@ -45,46 +50,48 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter }      from 'vue-router';
-import { getStories }     from '../api/api';
+import { ref, onMounted } from 'vue'
+import { useRouter }       from 'vue-router'
+import { getStories }      from '../api/api'
+import ErrorToast          from '../components/ErrorToast.vue'
 
-const stories = ref([]);
-const router  = useRouter();
+const stories = ref([])
+const error    = ref(null)   // ← le toast lit cette ref
+const router   = useRouter()
 
-// Charger les histoires
+// Charger la liste des histoires avec gestion d’erreur
 onMounted(async () => {
   try {
-    const { data } = await getStories();
-    stories.value = data.data;
+    const { data } = await getStories()
+    stories.value = data.data
   } catch (err) {
-    console.error('Erreur chargement histoires :', err);
+    // on alimente la ref pour déclencher l’affichage du toast
+    error.value = typeof err === 'object' && err.message
+      ? err
+      : { message: 'Erreur inattendue' }
   }
-});
+})
 
 // Navigation vers un chapitre donné par son ordre
 function goToChapter(storyId, chapterOrder) {
-  // Mettre à jour la progression (on stocke l'ordre du chapitre)
-  localStorage.setItem(`progress_story_${storyId}`, chapterOrder);
-  router.push({ name: 'Chapter', params: { sid: storyId, cid: chapterOrder } });
+  localStorage.setItem(`progress_story_${storyId}`, chapterOrder)
+  router.push({ name: 'Chapter', params: { sid: storyId, cid: chapterOrder } })
 }
 
 // Redémarrer l'histoire
 function restartStory(storyId) {
-  // Supprimer l'ancienne progression
-  localStorage.removeItem(`progress_story_${storyId}`);
-  // Aller au chapitre d'ordre 1
-  goToChapter(storyId, 1);
+  localStorage.removeItem(`progress_story_${storyId}`)
+  goToChapter(storyId, 1)
 }
 
 // Vérifie s'il existe une progression
 function hasProgress(storyId) {
-  return localStorage.getItem(`progress_story_${storyId}`) !== null;
+  return localStorage.getItem(`progress_story_${storyId}`) !== null
 }
 
 // Récupère l'ordre du chapitre où on s'est arrêté
 function progressFor(storyId) {
-  return Number(localStorage.getItem(`progress_story_${storyId}`));
+  return Number(localStorage.getItem(`progress_story_${storyId}`))
 }
 </script>
 

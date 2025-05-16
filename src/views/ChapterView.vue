@@ -1,5 +1,8 @@
 <template>
   <div class="chapter-view">
+    <!-- Toast d’erreur -->
+    <ErrorToast :modelValue="error" />
+
     <button class="btn-back" @click="goBack">← Retour aux histoires</button>
 
     <div class="chapter-container">
@@ -41,46 +44,54 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter }   from 'vue-router';
 import { getChapter, getChapterByOrder } from '../api/api';
+import ErrorToast from '../components/ErrorToast.vue';
 
 const route  = useRoute();
 const router = useRouter();
 
 const chapter = ref(null);
+const error   = ref(null);
 const sid     = route.params.sid;
-const cid     = ref(Number(route.params.cid)); // Maintenant cid représente l'ordre (1, 2, 3...) et non plus l'ID du chapitre
+const cid     = ref(Number(route.params.cid));
 
+/**
+ * Charge un chapitre par son ordre dans la story.
+ * En cas d’erreur, on alimente `error` pour afficher le toast.
+ */
 async function loadChapter(order) {
   chapter.value = null;
+  error.value   = null;
   try {
-    // On utilise getChapterByOrder au lieu de getChapter
     const { data } = await getChapterByOrder(sid, order);
     chapter.value = data.data;
-    // On stocke toujours l'ordre du chapitre (et non son ID) dans localStorage
     localStorage.setItem(`progress_story_${sid}`, order);
-  } catch {
-    router.push({ name: 'Stories' });
+  } catch (e) {
+    error.value = { message: 'Impossible de charger le chapitre.' };
+    // On peut rediriger après un délai si besoin
+    setTimeout(() => router.push({ name: 'Stories' }), 2000);
   }
 }
 
 onMounted(() => loadChapter(cid.value));
 watch(() => route.params.cid, newCid => loadChapter(Number(newCid)));
 
-function selectChoice(nextChapterId) {
-  if (nextChapterId) {
-    // Ici, nextChapterId est toujours l'ID réel du chapitre cible
-    // On a besoin de connaître son ordre pour la navigation
-    getChapter(sid, nextChapterId)
-      .then(({ data }) => {
-        // On suppose que le chapitre retourné contient une propriété "order"
-        const nextOrder = data.data.order;
-        router.push({ name: 'Chapter', params: { sid, cid: nextOrder } });
-      })
-      .catch(() => {
-        router.push({ name: 'Stories' });
-      });
+/**
+ * Sélectionne un choix et redirige vers le chapitre suivant.
+ * Gère les erreurs également via le toast.
+ */
+async function selectChoice(nextChapterId) {
+  if (! nextChapterId) return;
+  error.value = null;
+  try {
+    const { data } = await getChapter(sid, nextChapterId);
+    const nextOrder = data.data.order;
+    router.push({ name: 'Chapter', params: { sid, cid: nextOrder } });
+  } catch {
+    error.value = { message: 'Chapitre suivant introuvable.' };
+    // on peut rester sur la page ou rediriger
   }
 }
 
@@ -119,7 +130,6 @@ function restartStory() {
   font-size: 1rem;
   transition: all 0.3s ease;
 }
-
 .btn-back:hover {
   color: #4853d0;
   transform: translateX(-5px);
@@ -145,11 +155,9 @@ function restartStory() {
   list-style: none;
   padding: 0;
 }
-
 .choices-list li {
   margin-bottom: 1rem;
 }
-
 .choices-list button {
   display: block;
   width: 100%;
@@ -163,7 +171,6 @@ function restartStory() {
   font-size: 1.1rem;
   transition: all 0.3s ease;
 }
-
 .choices-list button:hover {
   background-color: #4853d0;
   transform: translateY(-2px);
@@ -173,14 +180,12 @@ function restartStory() {
   text-align: center;
   margin-top: 1rem;
 }
-
 .epilogue-header {
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
   color: #2d3748;
   text-align: center;
 }
-
 .btn-restart {
   padding: 0.75rem 1.5rem;
   background-color: #ff7e5f;
@@ -193,7 +198,6 @@ function restartStory() {
   transition: all 0.3s ease;
   margin-top: 1rem;
 }
-
 .btn-restart:hover {
   background-color: #ff6a48;
   transform: translateY(-2px);
@@ -207,53 +211,20 @@ function restartStory() {
   font-size: 1.2rem;
 }
 
-/* Media queries pour la responsivité */
+/* Responsive */
 @media (max-width: 768px) {
-  .chapter-view {
-    margin: 1rem auto;
-  }
-  
-  .chapter-container {
-    padding: 1.5rem;
-  }
-  
-  .chapter-title {
-    font-size: 1.75rem;
-  }
-  
-  .chapter-content {
-    font-size: 1.1rem;
-    line-height: 1.6;
-  }
-  
-  .choices-list button {
-    font-size: 1rem;
-    padding: 0.8rem;
-  }
+  .chapter-view { margin: 1rem auto; }
+  .chapter-container { padding: 1.5rem; }
+  .chapter-title { font-size: 1.75rem; }
+  .chapter-content { font-size: 1.1rem; line-height: 1.6; }
+  .choices-list button { font-size: 1rem; padding: 0.8rem; }
 }
 
 @media (max-width: 480px) {
-  .chapter-container {
-    padding: 1rem;
-    border-radius: 8px;
-  }
-  
-  .chapter-title {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-  }
-  
-  .chapter-content {
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .choices-list button {
-    padding: 0.7rem;
-  }
-  
-  .btn-restart {
-    padding: 0.7rem 1.2rem;
-  }
+  .chapter-container { padding: 1rem; border-radius: 8px; }
+  .chapter-title { font-size: 1.5rem; margin-bottom: 1rem; }
+  .chapter-content { font-size: 1rem; margin-bottom: 1.5rem; }
+  .choices-list button { padding: 0.7rem; }
+  .btn-restart { padding: 0.7rem 1.2rem; }
 }
 </style>

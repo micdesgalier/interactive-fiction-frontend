@@ -13,13 +13,20 @@ const api = axios.create({
   withCredentials: false, // pas de cookies, purement stateless
 });
 
-// Ajout du token à chaque requête si présent
 api.interceptors.request.use(config => {
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// Interceptor de réponse : rejette avec un payload uniforme
+api.interceptors.response.use(
+  res => res,
+  err => {
+    // on peut extraire ici le message ou les erreurs de validation
+    const payload = err.response?.data || { message: err.message };
+    return Promise.reject(payload);
+  }
+);
 
 // API
 
